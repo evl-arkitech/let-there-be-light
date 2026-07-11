@@ -1279,7 +1279,7 @@ function triggerGenesisSequence() {
 const WEB3_CONFIG = {
     // Zero address signals local simulation mode. Users can deploy GenesisResonance.sol
     // to Base and replace this address with their deployed contract address.
-    contractAddress: "0x0000000000000000000000000000000000000000",
+    contractAddress: "0x7e50D24299A7CBdA4380A73F08CADDA8C7CF451e",
     abi: [
         "function recordResonance(uint256 frequency, uint256 nodeN, uint256 nodeM, string memory intention) public returns (uint256)",
         "event ResonanceRegistered(uint256 indexed tokenId, address indexed creator, uint256 frequency, uint256 nodeN, uint256 nodeM, string intention)"
