@@ -1,1 +1,339 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="base:app_id" content="6a51c314e3b311a8d678da88" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let There Be Light - Thought, Frequency, & Matter</title>
+    <meta name="description" content="Explore how thought, frequency, and matter interact through interactive cymatics and audio visualizers based on Solfeggio frequencies and conscious intentions.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Glow Elements -->
+    <div class="ambient-glow glow-1" id="glow-1"></div>
+    <div class="ambient-glow glow-2" id="glow-2"></div>
+    <div class="ambient-glow glow-3" id="glow-3"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo">
+                <span class="logo-light">LET THERE BE</span>
+                <span class="logo-bold">LIGHT</span>
+            </div>
+            <div class="header-right">
+                <button class="web3-btn" id="btn-connect-wallet" title="Connect Web3 Wallet">Connect Wallet</button>
+                <div class="status-indicator">
+                    <span class="pulse-dot idle" id="status-dot"></span>
+                    <span class="status-text" id="status-text">SYSTEM INERT</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace-grid">
+            <!-- Left Panel: Controls (Thought & Frequency) -->
+            <section class="control-panel glass">
+                <div class="panel-section">
+                    <h2 class="section-title"><span class="number">01</span> Thought (Intention Engine)</h2>
+                    <p class="section-desc">Shift your mental focus to alter the physics, speed, and energetic cohesion of the particle field.</p>
+                    
+                    <div class="intention-grid">
+                        <button class="intent-btn active" data-intent="focus" id="btn-intent-focus">
+                            <span class="intent-icon">◈</span>
+                            <span class="intent-name">Focus</span>
+                            <span class="intent-desc">Coherence & Order</span>
+                        </button>
+                        <button class="intent-btn" data-intent="calm" id="btn-intent-calm">
+                            <span class="intent-icon">≈</span>
+                            <span class="intent-name">Calm</span>
+                            <span class="intent-desc">Slow Entropy</span>
+                        </button>
+                        <button class="intent-btn" data-intent="manifest" id="btn-intent-manifest">
+                            <span class="intent-icon">✦</span>
+                            <span class="intent-name">Manifest</span>
+                            <span class="intent-desc">High Energy</span>
+                        </button>
+                        <button class="intent-btn" data-intent="transcend" id="btn-intent-transcend">
+                            <span class="intent-icon">✺</span>
+                            <span class="intent-name">Transcend</span>
+                            <span class="intent-desc">Quantum Field</span>
+                        </button>
+                    </div>
+
+                    <div class="thought-input-wrapper">
+                        <label for="thought-manifesto" class="input-label">Project Intent (Type to Charge the Field)</label>
+                        <input type="text" id="thought-manifesto" placeholder="Enter a word or focus phrase..." autocomplete="off">
+                        <div class="input-bar"></div>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h2 class="section-title"><span class="number">02</span> Frequency (Vibrational Input)</h2>
+                    <p class="section-desc">Inject sonic geometry. Toggle between generator frequencies or stream your environment.</p>
+
+                    <div class="input-source-toggle">
+                        <button class="source-btn active" id="btn-src-generator">Internal Generator</button>
+                        <button class="source-btn" id="btn-src-mic">Microphone Feed</button>
+                    </div>
+
+                    <!-- Generator Controls -->
+                    <div class="source-content" id="generator-controls">
+                        <div class="solfeggio-selector">
+                            <label class="input-label">Solfeggio Resonance</label>
+                            <div class="solfeggio-buttons">
+                                <button class="solfeggio-btn active" data-freq="528" data-n="4" data-m="5">
+                                    <span class="freq-val">528 Hz</span>
+                                    <span class="freq-label">Transformation</span>
+                                </button>
+                                <button class="solfeggio-btn" data-freq="396" data-n="2" data-m="3">
+                                    <span class="freq-val">396 Hz</span>
+                                    <span class="freq-label">Liberation</span>
+                                </button>
+                                <button class="solfeggio-btn" data-freq="417" data-n="3" data-m="4">
+                                    <span class="freq-val">417 Hz</span>
+                                    <span class="freq-label">Facilitate Change</span>
+                                </button>
+                                <button class="solfeggio-btn" data-freq="639" data-n="5" data-m="6">
+                                    <span class="freq-val">639 Hz</span>
+                                    <span class="freq-label">Connection</span>
+                                </button>
+                                <button class="solfeggio-btn" data-freq="741" data-n="6" data-m="7">
+                                    <span class="freq-val">741 Hz</span>
+                                    <span class="freq-label">Awakening Intuition</span>
+                                </button>
+                                <button class="solfeggio-btn" data-freq="852" data-n="7" data-m="8">
+                                    <span class="freq-val">852 Hz</span>
+                                    <span class="freq-label">Spiritual Order</span>
+                                </button>
+                                <button class="solfeggio-btn" data-freq="963" data-n="8" data-m="9">
+                                    <span class="freq-val">963 Hz</span>
+                                    <span class="freq-label">Pure Consciousness</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="control-row">
+                            <div class="slider-group">
+                                <div class="slider-labels">
+                                    <span>Generator Volume</span>
+                                    <span id="val-volume">20%</span>
+                                </div>
+                                <input type="range" id="input-volume" min="0" max="100" value="20" class="custom-slider">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mic Controls -->
+                    <div class="source-content hidden" id="mic-controls">
+                        <div class="mic-status-box">
+                            <div class="mic-pulse-ring" id="mic-ring">
+                                <span class="mic-icon">🎙️</span>
+                            </div>
+                            <button class="action-btn" id="btn-auth-mic">Authorize Microphone</button>
+                            <p class="small-text">Allow browser access to physically shape the particles using voice, instruments, or noise.</p>
+                        </div>
+                        
+                        <!-- Real-time Speech Resonant Pitch Tracker Display -->
+                        <div class="vocal-tracker-box hidden" id="vocal-tracker">
+                            <div class="tracker-header">Vocal Resonance Monitor</div>
+                            <div class="freq-display">
+                                <span class="freq-number" id="vocal-freq">0.0</span>
+                                <span class="freq-unit">Hz</span>
+                            </div>
+                            <div class="note-display">
+                                Nearest Note: <span class="note-val" id="vocal-note">--</span>
+                            </div>
+                            <div class="stability-display" id="vocal-resonance-status">
+                                Resonance: <span class="stability-val" id="vocal-resonance">Unstable</span>
+                            </div>
+                            <!-- Cent deviation needle scale -->
+                            <div class="tuning-meter-label">
+                                <span>-50¢</span>
+                                <span>In Tune</span>
+                                <span>+50¢</span>
+                            </div>
+                            <div class="pitch-history-container">
+                                <div class="pitch-needle" id="pitch-needle"></div>
+                                <div class="pitch-center-line"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Math Tuning -->
+                    <div class="advanced-tuning">
+                        <div class="accordion-header" id="tuning-toggle">
+                            <span>Mathematical Wave Tuning (Chladni Plate Variables)</span>
+                            <span class="arrow">▼</span>
+                        </div>
+                        <div class="accordion-content hidden" id="tuning-content">
+                            <div class="slider-group">
+                                <div class="slider-labels">
+                                    <span>Nodal Factor N (Horizontal Nodes)</span>
+                                    <span id="val-node-n">4</span>
+                                </div>
+                                <input type="range" id="input-node-n" min="1" max="12" value="4" step="1" class="custom-slider">
+                            </div>
+                            <div class="slider-group">
+                                <div class="slider-labels">
+                                    <span>Nodal Factor M (Vertical Nodes)</span>
+                                    <span id="val-node-m">5</span>
+                                </div>
+                                <input type="range" id="input-node-m" min="1" max="12" value="5" step="1" class="custom-slider">
+                            </div>
+                            <div class="slider-group">
+                                <div class="slider-labels">
+                                    <span>Vibration Energy (Excitation)</span>
+                                    <span id="val-excitation">4.0</span>
+                                </div>
+                                <input type="range" id="input-excitation" min="0.5" max="10" value="4.0" step="0.1" class="custom-slider">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activation Button -->
+                <button class="activate-btn" id="btn-activate">
+                    <span class="activate-glow"></span>
+                    <span class="activate-text">TAP INTO THE MATRIX</span>
+                </button>
+            </section>
+
+            <!-- Center Panel: The Matter (Canvas Visualizer) -->
+            <section class="visualizer-panel glass">
+                <div class="canvas-header">
+                    <div class="matrix-coordinate" id="matrix-coord">X: 0.00 | Y: 0.00</div>
+                    <button class="genesis-btn" id="btn-genesis" title="Trigger Singularity & Primordial Sound Wave">⚛ GENESIS</button>
+                    <div class="geometry-label" id="geometry-label">Chladni Mode: 4, 5</div>
+                </div>
+
+                <div class="canvas-wrapper">
+                    <!-- The Interactive Canvas -->
+                    <canvas id="matrix-canvas"></canvas>
+                    
+                    <!-- Soundwaves overlay -->
+                    <div class="wave-overlay">
+                        <canvas id="wave-canvas"></canvas>
+                    </div>
+
+                    <!-- Welcome Screen Overlay -->
+                    <div class="canvas-overlay" id="welcome-overlay">
+                        <div class="overlay-content">
+                            <div class="glowing-symbol">⚛</div>
+                            <h3>Reality is a Resonance</h3>
+                            <p>Thought directs energy. Frequency coordinates form. Matter settles in the silence between waves.</p>
+                            <p class="hint">Click the button below to initialize the audio context and begin shaping matter.</p>
+                            <button class="action-btn glow" id="btn-start-overlay">INITIALIZE FREQUENCY FIELD</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="canvas-footer">
+                    <div class="footer-stat">
+                        <span class="label">Field Particles:</span>
+                        <span class="value" id="stat-particles">2,500</span>
+                    </div>
+                    <div class="footer-stat">
+                        <span class="label">Binaural Carrier:</span>
+                        <span class="value" id="stat-carrier">528 Hz</span>
+                    </div>
+                    <div class="footer-stat">
+                        <span class="label">Resonance Coherence:</span>
+                        <span class="value" id="stat-coherence">85%</span>
+                    </div>
+                    <!-- Web3 Mint Resonance Button -->
+                    <button class="web3-mint-btn hidden" id="btn-mint-resonance" title="Mint your current visual pattern as an on-chain NFT on Base">MINT RESONANCE NFT</button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Educational & Insights -->
+            <section class="insights-panel glass">
+                <h2 class="section-title"><span class="number">03</span> Matter (Cymatics & Physics)</h2>
+                
+                <div class="manifesto-card">
+                    <div class="card-icon">⚡</div>
+                    <h4>The Triad of Creation</h4>
+                    <p class="manifesto-text">
+                        "If you want to find the secrets of the universe, think in terms of energy, frequency and vibration." 
+                        <span class="quote-author">— Nikola Tesla</span>
+                    </p>
+                </div>
+
+                <div class="tabs-container">
+                    <div class="tab-headers">
+                        <button class="tab-btn active" data-tab="science">Cymatics</button>
+                        <button class="tab-btn" data-tab="solfeggio">Solfeggio</button>
+                        <button class="tab-btn" data-tab="matrix">The Matrix</button>
+                    </div>
+                    
+                    <div class="tab-contents">
+                        <!-- Cymatics Tab -->
+                        <div class="tab-content-panel active" id="tab-science">
+                            <p><strong>Cymatics</strong> is the study of visible sound and vibration. When a physical surface (like a metal plate) vibrates, particles like sand accumulate in the <em>nodal lines</em>—areas where the plate is completely still.</p>
+                            <p>This web application models the <strong>Chladni Plate Equation</strong>:</p>
+                            <div class="math-block">
+                                cos(nπx)·cos(mπy) - cos(mπx)·cos(nπy) = 0
+                            </div>
+                            <p>Here, N and M define the harmonics. As you change the frequency, these ratios shift, forcing the chaotic sand-like particles into pristine geometric order.</p>
+                        </div>
+
+                        <!-- Solfeggio Tab -->
+                        <div class="tab-content-panel hidden" id="tab-solfeggio">
+                            <p><strong>Solfeggio frequencies</strong> make up an ancient 6-tone scale (with 3 additional tones discovered later) thought to represent fundamental electromagnetic resonances of nature and consciousness.</p>
+                            <ul class="freq-list">
+                                <li><strong>396 Hz:</strong> Liberating Guilt & Fear</li>
+                                <li><strong>417 Hz:</strong> Undoing Situations & Facilitating Change</li>
+                                <li><strong>528 Hz:</strong> Transformation & Miracles (DNA repair)</li>
+                                <li><strong>639 Hz:</strong> Connecting & Harmonizing Relationships</li>
+                                <li><strong>741 Hz:</strong> Awakening Intuition & Expressions</li>
+                                <li><strong>852 Hz:</strong> Returning to Spiritual Order</li>
+                                <li><strong>963 Hz:</strong> Crown Chakra / Divine Consciousness</li>
+                            </ul>
+                        </div>
+
+                        <!-- Matrix Tab -->
+                        <div class="tab-content-panel hidden" id="tab-matrix">
+                            <p>In classical computation, we write code to manipulate bits. In the simulation of reality, the fundamental code is vibration. Every atom, molecule, and cell is vibrating at a specific frequency.</p>
+                            <p>By learning to direct your <strong>Thought</strong> (intention), focus your <strong>Frequency</strong> (voice, tone, meditation), you alter the structure of <strong>Matter</strong> (your neural pathways, body, and external reality).</p>
+                            <p>Use the controls on the left to project an intent, focus your mind, and watch the matrix construct itself before your eyes.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="live-analysis-box">
+                    <h5>Quantum Feed Analysis</h5>
+                    <div class="analysis-row">
+                        <span>Entropy State</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" id="bar-entropy" style="width: 25%;"></div>
+                        </div>
+                    </div>
+                    <div class="analysis-row">
+                        <span>Geometric Coherence</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" id="bar-coherence" style="width: 75%;"></div>
+                        </div>
+                    </div>
+                    <div class="analysis-row">
+                        <span>Thought Alignment</span>
+                        <div class="bar-container">
+                            <div class="bar-fill" id="bar-thought" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Ethers.js for Web3 Integration -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+    <!-- Web Audio & Cymatics Engine -->
+    <script src="app.js"></script>
+</body>
+</html>
