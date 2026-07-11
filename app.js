@@ -1,3 +1,12 @@
+/*
+  ███████╗██╗   ██╗██╗
+  ██╔════╝██║   ██║██║
+  █████╗  ██║   ██║██║
+  ██╔══╝  ╚██╗ ██╔╝██║
+  ███████╗ ╚████╔╝ ███████╗
+  ╚══════╝  ╚═══╝  ╚══════╝
+  [ EVL Watermark - Integrity Verified ]
+*/
 /**
  * Let There Be Light - Thought, Frequency, & Matter
  * Core Application Logic & Physics Engine
@@ -164,7 +173,13 @@ const el = {
     pitchNeedle: document.getElementById('pitch-needle'),
     
     // Genesis creation
-    btnGenesis: document.getElementById('btn-genesis')
+    btnGenesis: document.getElementById('btn-genesis'),
+    
+    // LIGHT Token elements
+    tokenBalance: document.getElementById('token-balance'),
+    btnClaimFaucet: document.getElementById('btn-claim-faucet'),
+    btnAddToken: document.getElementById('btn-add-token'),
+    chkDustShield: document.getElementById('chk-dust-shield')
 };
 
 // --- INITIALIZATION ---
@@ -793,6 +808,17 @@ function bindEvents() {
     el.btnMintResonance.addEventListener('click', () => {
         mintResonanceNFT();
     });
+
+    // LIGHT Token Event Listeners
+    el.btnClaimFaucet.addEventListener('click', () => {
+        claimFaucetToken();
+    });
+    el.btnAddToken.addEventListener('click', () => {
+        importTokenToWallet();
+    });
+    el.chkDustShield.addEventListener('change', async (e) => {
+        await toggleDustShield(e.target.checked);
+    });
 }
 
 // --- DYNAMIC STYLING SYSTEM ---
@@ -1279,12 +1305,190 @@ function triggerGenesisSequence() {
 const WEB3_CONFIG = {
     // Zero address signals local simulation mode. Users can deploy GenesisResonance.sol
     // to Base and replace this address with their deployed contract address.
-    contractAddress: "0x7e50D24299A7CBdA4380A73F08CADDA8C7CF451e",
+    contractAddress: "0x0000000000000000000000000000000000000000",
     abi: [
         "function recordResonance(uint256 frequency, uint256 nodeN, uint256 nodeM, string memory intention) public returns (uint256)",
         "event ResonanceRegistered(uint256 indexed tokenId, address indexed creator, uint256 frequency, uint256 nodeN, uint256 nodeM, string intention)"
+    ],
+    // Zero address signals local simulation mode for the ERC-20 token.
+    tokenAddress: "0x0000000000000000000000000000000000000000",
+    tokenAbi: [
+        "function balanceOf(address account) external view returns (uint256)",
+        "function claimFaucet() external",
+        "function lastClaimTime(address account) external view returns (uint256)",
+        "function FAUCET_COOLDOWN() external view returns (uint256)",
+        "function dustShieldEnabled(address account) external view returns (bool)",
+        "function toggleDustShield(bool enabled) external"
     ]
 };
+
+async function updateTokenBalance() {
+    if (!state.walletConnected || !state.userAddress) {
+        el.tokenBalance.innerText = "0.00";
+        el.btnClaimFaucet.disabled = true;
+        el.btnAddToken.disabled = true;
+        el.chkDustShield.disabled = true;
+        el.chkDustShield.checked = false;
+        return;
+    }
+    
+    el.btnAddToken.disabled = false;
+    el.btnClaimFaucet.disabled = false;
+    el.chkDustShield.disabled = false;
+
+    if (WEB3_CONFIG.tokenAddress === "0x0000000000000000000000000000000000000000") {
+        // MOCK MODE: Check balance from localStorage
+        let mockBal = localStorage.getItem(`mock_light_balance_${state.userAddress}`);
+        if (mockBal === null) {
+            mockBal = "1000.00";
+            localStorage.setItem(`mock_light_balance_${state.userAddress}`, mockBal);
+        }
+        el.tokenBalance.innerText = parseFloat(mockBal).toFixed(2);
+        
+        // Check cooldown
+        const lastClaim = parseInt(localStorage.getItem(`mock_last_claim_${state.userAddress}`) || "0");
+        const now = Date.now();
+        if (now - lastClaim < 24 * 60 * 60 * 1000) {
+            el.btnClaimFaucet.innerText = "Claimed (24h)";
+            el.btnClaimFaucet.disabled = true;
+        } else {
+            el.btnClaimFaucet.innerText = "Claim Faucet";
+            el.btnClaimFaucet.disabled = false;
+        }
+
+        // Check dust shield status
+        const isShield = localStorage.getItem(`mock_dust_shield_${state.userAddress}`) === "true";
+        el.chkDustShield.checked = isShield;
+    } else {
+        // REAL MODE: Query the Base network
+        try {
+            const contract = new ethers.Contract(
+                WEB3_CONFIG.tokenAddress,
+                WEB3_CONFIG.tokenAbi,
+                state.web3Signer
+            );
+            
+            const bal = await contract.balanceOf(state.userAddress);
+            el.tokenBalance.innerText = parseFloat(ethers.formatUnits(bal, 18)).toFixed(2);
+            
+            // Check faucet eligibility
+            const lastClaim = await contract.lastClaimTime(state.userAddress);
+            const cooldown = await contract.FAUCET_COOLDOWN();
+            const lastClaimNum = Number(lastClaim) * 1000;
+            const cooldownNum = Number(cooldown) * 1000;
+            const now = Date.now();
+            
+            if (now - lastClaimNum < cooldownNum) {
+                el.btnClaimFaucet.innerText = "Claimed (24h)";
+                el.btnClaimFaucet.disabled = true;
+            } else {
+                el.btnClaimFaucet.innerText = "Claim Faucet";
+                el.btnClaimFaucet.disabled = false;
+            }
+
+            // Check dust shield status on-chain
+            const isShield = await contract.dustShieldEnabled(state.userAddress);
+            el.chkDustShield.checked = isShield;
+        } catch (e) {
+            console.error("Failed to query token balance or shield:", e);
+            el.tokenBalance.innerText = "ERROR";
+        }
+    }
+}
+
+async function claimFaucetToken() {
+    if (!state.walletConnected || !state.userAddress) return;
+    
+    el.btnClaimFaucet.innerText = "CLAIMING...";
+    el.btnClaimFaucet.disabled = true;
+    
+    try {
+        if (WEB3_CONFIG.tokenAddress === "0x0000000000000000000000000000000000000000") {
+            // MOCK MODE
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            let mockBal = parseFloat(localStorage.getItem(`mock_light_balance_${state.userAddress}`) || "1000.00");
+            mockBal += 100.00;
+            localStorage.setItem(`mock_light_balance_${state.userAddress}`, mockBal.toFixed(2));
+            localStorage.setItem(`mock_last_claim_${state.userAddress}`, Date.now().toString());
+            
+            alert("Daily faucet claim successful! +100.00 LIGHT tokens received in mock mode.");
+        } else {
+            // REAL MODE
+            const contract = new ethers.Contract(
+                WEB3_CONFIG.tokenAddress,
+                WEB3_CONFIG.tokenAbi,
+                state.web3Signer
+            );
+            const tx = await contract.claimFaucet();
+            el.statusText.innerText = "AWAITING COOLDOWN BLOCK CONFIRMATION...";
+            await tx.wait();
+            alert("Daily faucet claim successful! +100.00 LIGHT tokens received.");
+        }
+        await updateTokenBalance();
+    } catch (e) {
+        console.error("Failed to claim faucet:", e);
+        alert("Faucet claim failed. Ensure cooldown is finished or network is accessible.");
+        el.btnClaimFaucet.innerText = "Claim Faucet";
+        el.btnClaimFaucet.disabled = false;
+    }
+}
+
+async function importTokenToWallet() {
+    if (!state.walletConnected || !window.ethereum) return;
+    
+    try {
+        const wasAdded = await window.ethereum.request({
+            method: 'wallet_watchAsset',
+            params: {
+                type: 'ERC20',
+                options: {
+                    address: WEB3_CONFIG.tokenAddress === "0x0000000000000000000000000000000000000000" ? 
+                             "0x1111111111111111111111111111111111111111" : WEB3_CONFIG.tokenAddress,
+                    symbol: 'LIGHT',
+                    decimals: 18,
+                    image: 'https://genesis.sophiaserpent.org/app_thumbnail.jpg',
+                },
+            },
+        });
+        if (wasAdded) {
+            console.log('LIGHT token added to wallet!');
+        }
+    } catch (error) {
+        console.error('Error importing token to wallet:', error);
+    }
+}
+
+async function toggleDustShield(enabled) {
+    if (!state.walletConnected || !state.userAddress) return;
+    
+    el.chkDustShield.disabled = true;
+    try {
+        if (WEB3_CONFIG.tokenAddress === "0x0000000000000000000000000000000000000000") {
+            // MOCK MODE
+            await new Promise(resolve => setTimeout(resolve, 800));
+            localStorage.setItem(`mock_dust_shield_${state.userAddress}`, enabled.toString());
+            el.statusText.innerText = `PHISHING SHIELD: ${enabled ? 'ACTIVE' : 'INACTIVE'} (MOCK)`;
+        } else {
+            // REAL MODE
+            const contract = new ethers.Contract(
+                WEB3_CONFIG.tokenAddress,
+                WEB3_CONFIG.tokenAbi,
+                state.web3Signer
+            );
+            const tx = await contract.toggleDustShield(enabled);
+            el.statusText.innerText = "UPDATING SHIELD ON-CHAIN...";
+            await tx.wait();
+            el.statusText.innerText = `PHISHING SHIELD: ${enabled ? 'ACTIVE' : 'INACTIVE'}`;
+        }
+    } catch (e) {
+        console.error("Failed to toggle dust shield:", e);
+        alert("Failed to toggle phishing shield. Try again.");
+        el.chkDustShield.checked = !enabled; // revert checkbox
+    } finally {
+        el.chkDustShield.disabled = false;
+    }
+}
 
 async function connectWallet() {
     if (typeof window.ethereum === "undefined") {
@@ -1333,6 +1537,9 @@ async function connectWallet() {
         
         el.statusText.innerText = `WALLET CONNECTED: ${resolvedLabel.toUpperCase()}`;
         el.statusDot.className = "pulse-dot active";
+        
+        // Fetch/Update LIGHT Balance
+        await updateTokenBalance();
     } catch (err) {
         console.error("Wallet connection failed:", err);
         el.statusDot.className = "pulse-dot warning";
@@ -1365,6 +1572,12 @@ async function mintResonanceNFT() {
             // Artificial delay to simulate block time
             await new Promise(resolve => setTimeout(resolve, 2000));
             
+            // Reward 500 LIGHT tokens for aligning the field
+            let mockBal = parseFloat(localStorage.getItem(`mock_light_balance_${state.userAddress}`) || "1000.00");
+            mockBal += 500.00;
+            localStorage.setItem(`mock_light_balance_${state.userAddress}`, mockBal.toFixed(2));
+            await updateTokenBalance();
+
             // Generate and show on-chain dynamic SVG in a modal popup
             const mockResonance = {
                 frequency: state.frequency,
@@ -1376,7 +1589,7 @@ async function mintResonanceNFT() {
             const generatedSvg = generateOnChainSVG(mockResonance);
             showOnChainNFTModal(generatedSvg, mockResonance, ethFee);
             
-            el.statusText.innerText = "RESONANCE MINTED (LOCAL SIMULATION)";
+            el.statusText.innerText = "RESONANCE MINTED & +500 LIGHT REWARD!";
             el.statusDot.className = "pulse-dot active";
         } else {
             // REAL MODE: Broadcast transaction to active network
@@ -1403,6 +1616,7 @@ async function mintResonanceNFT() {
             el.statusText.innerText = "RESONANCE NFT SUCCESSFULLY MINTED!";
             el.statusDot.className = "pulse-dot active";
             alert(`NFT successfully minted! Transaction: ${receipt.hash}`);
+            await updateTokenBalance();
         }
     } catch (err) {
         console.error("Resonance recording failed:", err);
