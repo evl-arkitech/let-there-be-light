@@ -174,6 +174,8 @@ const el = {
     
     // Genesis creation
     btnGenesis: document.getElementById('btn-genesis'),
+    btnConnectWallet: document.getElementById('btn-connect-wallet'),
+    btnMintResonance: document.getElementById('btn-mint-resonance'),
     
     // LIGHT Token elements
     tokenBalance: document.getElementById('token-balance'),
@@ -1303,8 +1305,8 @@ function triggerGenesisSequence() {
 
 // --- WEB3 INTEGRATION & SMART CONTRACT COUPLING ---
 const WEB3_CONFIG = {
-    
-    
+    // Zero address signals local simulation mode. Users can deploy GenesisResonance.sol
+    // to Base and replace this address with their deployed contract address.
     contractAddress: "0x7e50d24299a7cbda4380a73f08cadda8c7cf451e",
     abi: [
         "function recordResonance(uint256 frequency, uint256 nodeN, uint256 nodeM, string memory intention) public returns (uint256)",
@@ -1443,7 +1445,7 @@ async function importTokenToWallet() {
             params: {
                 type: 'ERC20',
                 options: {
-                    address: WEB3_CONFIG.tokenAddress === "0x7e50d24299a7cbda4380a73f08cadda8c7cf451e" ? 
+                    address: WEB3_CONFIG.tokenAddress === "0x0000000000000000000000000000000000000000" ? 
                              "0x1111111111111111111111111111111111111111" : WEB3_CONFIG.tokenAddress,
                     symbol: 'LIGHT',
                     decimals: 18,
@@ -1464,7 +1466,7 @@ async function toggleDustShield(enabled) {
     
     el.chkDustShield.disabled = true;
     try {
-        if (WEB3_CONFIG.tokenAddress === "0x7e50d24299a7cbda4380a73f08cadda8c7cf451e") {
+        if (WEB3_CONFIG.tokenAddress === "0x0000000000000000000000000000000000000000") {
             // MOCK MODE
             await new Promise(resolve => setTimeout(resolve, 800));
             localStorage.setItem(`mock_dust_shield_${state.userAddress}`, enabled.toString());
