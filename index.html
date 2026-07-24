@@ -47,8 +47,11 @@
         <main class="workspace-grid">
             <!-- Left Panel: Controls (Thought & Frequency) -->
             <section class="control-panel glass">
-                <div class="panel-section">
-                    <h2 class="section-title"><span class="number">01</span> Thought (Intention Engine)</h2>
+                <div class="panel-section" id="section-thought">
+                    <div class="section-header-row">
+                        <h2 class="section-title"><span class="number">01</span> Thought (Intention Engine)</h2>
+                        <button class="hover-expand-btn" data-popup="thought" title="Open Thought Engine Window">⛶</button>
+                    </div>
                     <p class="section-desc">Shift your mental focus to alter the physics, speed, and energetic cohesion of the particle field.</p>
                     
                     <div class="intention-grid">
@@ -81,8 +84,11 @@
                     </div>
                 </div>
 
-                <div class="panel-section">
-                    <h2 class="section-title"><span class="number">02</span> Frequency (Vibrational Input)</h2>
+                <div class="panel-section" id="section-frequency">
+                    <div class="section-header-row">
+                        <h2 class="section-title"><span class="number">02</span> Frequency (Vibrational Input)</h2>
+                        <button class="hover-expand-btn" data-popup="frequency" title="Open Frequency Input Window">⛶</button>
+                    </div>
                     <p class="section-desc">Inject sonic geometry. Toggle between generator frequencies or stream your environment.</p>
 
                     <div class="input-source-toggle">
@@ -260,8 +266,11 @@
             </section>
 
             <!-- Right Panel: Educational & Insights -->
-            <section class="insights-panel glass">
-                <h2 class="section-title"><span class="number">03</span> Matter (Cymatics & Physics)</h2>
+            <section class="insights-panel glass" id="section-matter">
+                <div class="section-header-row">
+                    <h2 class="section-title"><span class="number">03</span> Matter (Cymatics & Physics)</h2>
+                    <button class="hover-expand-btn" data-popup="matter" title="Open Cymatics & Physics Window">⛶</button>
+                </div>
                 
                 <div class="manifesto-card">
                     <div class="card-icon">⚡</div>
@@ -276,6 +285,7 @@
                     <div class="tab-headers">
                         <button class="tab-btn active" data-tab="science">Cymatics</button>
                         <button class="tab-btn" data-tab="solfeggio">Solfeggio</button>
+                        <button class="tab-btn" data-tab="planet">Planet Observer</button>
                         <button class="tab-btn" data-tab="matrix">The Matrix</button>
                     </div>
                     
@@ -302,6 +312,25 @@
                                 <li><strong>852 Hz:</strong> Returning to Spiritual Order</li>
                                 <li><strong>963 Hz:</strong> Crown Chakra / Divine Consciousness</li>
                             </ul>
+                        </div>
+
+                        <!-- Planet Observer Tab -->
+                        <div class="tab-content-panel hidden" id="tab-planet">
+                            <p><strong>Photorealistic Planetary Resonant Observer</strong></p>
+                            <p class="small-text">Visualizes planetary body atmospheric Rayleigh scattering, axial rotation, and Schumann planetary resonance driven by live Solfeggio frequency harmonics.</p>
+                            <div class="planet-viewport-wrapper">
+                                <div id="planet-canvas-container" class="planet-canvas-container"></div>
+                                <div class="planet-overlay-info">
+                                    <span class="planet-title" id="planet-name-display">EARTH (TERRA)</span>
+                                    <span class="schumann-val" id="planet-schumann-display">Schumann Base: 7.83 Hz</span>
+                                </div>
+                            </div>
+                            <div class="planet-controls-grid">
+                                <button class="planet-select-btn active" data-planet="earth">Terra (Earth)</button>
+                                <button class="planet-select-btn" data-planet="mars">Ares (Mars)</button>
+                                <button class="planet-select-btn" data-planet="jupiter">Zeus (Jupiter)</button>
+                                <button class="planet-select-btn" data-planet="sol">Sol (Sun)</button>
+                            </div>
                         </div>
 
                         <!-- Matrix Tab -->
@@ -369,6 +398,8 @@
         </main>
     </div>
 
+    <!-- Three.js for 3D Photorealistic Planet Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- Ethers.js for Web3 Integration -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
     <!-- Web Audio & Cymatics Engine -->

@@ -1755,5 +1755,256 @@ function showOnChainNFTModal(svgContent, res, ethFee) {
     document.body.appendChild(modal);
 }
 
+// --- 3D PHOTOREALISTIC PLANET OBSERVER ENGINE ---
+const planetObserver = {
+    scene: null,
+    camera: null,
+    renderer: null,
+    planetMesh: null,
+    atmosphereMesh: null,
+    currentPlanet: 'earth',
+    animId: null,
+    initialized: false,
+
+    data: {
+        earth: {
+            name: 'EARTH (TERRA)',
+            schumann: '7.83 Hz (Primary)',
+            color: 0x1d4ed8,
+            atmosphereColor: 0x38bdf8,
+            specular: 0x333333,
+            shininess: 25
+        },
+        mars: {
+            name: 'MARS (ARES)',
+            schumann: '13.0 Hz (Dust Dynamics)',
+            color: 0xc2410c,
+            atmosphereColor: 0xf97316,
+            specular: 0x111111,
+            shininess: 5
+        },
+        jupiter: {
+            name: 'JUPITER (ZEUS)',
+            schumann: '27.3 Hz (Magnetospheric Resonance)',
+            color: 0xd97706,
+            atmosphereColor: 0xfcd34d,
+            specular: 0x222222,
+            shininess: 10
+        },
+        sol: {
+            name: 'SOL (THE SUN)',
+            schumann: '5.0 mHz (Helioseismic p-mode)',
+            color: 0xf59e0b,
+            atmosphereColor: 0xfef08a,
+            specular: 0xffffff,
+            shininess: 100
+        }
+    },
+
+    init() {
+        const container = document.getElementById('planet-canvas-container');
+        if (!container || typeof THREE === 'undefined') return;
+
+        if (this.initialized) {
+            this.resize();
+            return;
+        }
+
+        const width = container.clientWidth || 280;
+        const height = container.clientHeight || 240;
+
+        // Clear existing children in container
+        container.innerHTML = '';
+
+        // Scene & Camera
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+        this.camera.position.z = 2.8;
+
+        // Renderer with WebGL error fallback
+        try {
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+            this.renderer.setSize(width, height);
+            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(this.renderer.domElement);
+        } catch (e) {
+            console.error('WebGL initialization error in PlanetObserver:', e);
+            container.innerHTML = '<div style="color:#ef4444;font-size:0.75rem;padding:1rem;text-align:center;">WebGL Context Error</div>';
+            return;
+        }
+
+        // Lighting
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+        dirLight.position.set(5, 3, 5);
+        this.scene.add(dirLight);
+
+        const ambientLight = new THREE.AmbientLight(0x1e293b, 0.5);
+        this.scene.add(ambientLight);
+
+        // Procedural Planet Mesh
+        const geometry = new THREE.SphereGeometry(1, 64, 64);
+        const material = new THREE.MeshPhongMaterial({
+            color: this.data.earth.color,
+            emissive: 0x030712,
+            specular: this.data.earth.specular,
+            shininess: this.data.earth.shininess,
+            wireframe: false
+        });
+        this.planetMesh = new THREE.Mesh(geometry, material);
+        this.scene.add(this.planetMesh);
+
+        // Atmosphere Glow (Rayleigh scattering shell)
+        const atmosGeom = new THREE.SphereGeometry(1.12, 64, 64);
+        const atmosMat = new THREE.MeshLambertMaterial({
+            color: this.data.earth.atmosphereColor,
+            transparent: true,
+            opacity: 0.35,
+            side: THREE.BackSide
+        });
+        this.atmosphereMesh = new THREE.Mesh(atmosGeom, atmosMat);
+        this.scene.add(this.atmosphereMesh);
+
+        // Planet Button Controls
+        document.querySelectorAll('.planet-select-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.planet-select-btn').forEach(b => b.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                const targetPlanet = e.currentTarget.getAttribute('data-planet');
+                this.selectPlanet(targetPlanet);
+            });
+        });
+
+        window.addEventListener('resize', () => this.resize());
+        this.initialized = true;
+        this.animate();
+    },
+
+    resize() {
+        const container = document.getElementById('planet-canvas-container');
+        if (!container || !this.renderer || !this.camera) return;
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        if (width > 0 && height > 0) {
+            this.camera.aspect = width / height;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(width, height);
+        }
+    },
+
+    selectPlanet(planetKey) {
+        if (!this.data[planetKey] || !this.planetMesh || !this.atmosphereMesh) return;
+        this.currentPlanet = planetKey;
+        const info = this.data[planetKey];
+
+        const nameElem = document.getElementById('planet-name-display');
+        const schumannElem = document.getElementById('planet-schumann-display');
+        if (nameElem) nameElem.textContent = info.name;
+        if (schumannElem) schumannElem.textContent = `Schumann Base: ${info.schumann}`;
+
+        // Dynamic transition of planet material properties
+        this.planetMesh.material.color.setHex(info.color);
+        this.planetMesh.material.specular.setHex(info.specular);
+        this.planetMesh.material.shininess = info.shininess;
+        this.atmosphereMesh.material.color.setHex(info.atmosphereColor);
+
+        if (planetKey === 'sol') {
+            this.planetMesh.material.emissive.setHex(0xf59e0b);
+            this.atmosphereMesh.material.opacity = 0.65;
+        } else {
+            this.planetMesh.material.emissive.setHex(0x030712);
+            this.atmosphereMesh.material.opacity = 0.35;
+        }
+    },
+
+    animate() {
+        if (this.animId) cancelAnimationFrame(this.animId);
+        this.animId = requestAnimationFrame(() => this.animate());
+
+        if (!this.renderer || !this.scene || !this.camera) return;
+
+        // Axial Rotation modulated by current Solfeggio audio frequency state
+        const rotSpeed = 0.003 * (state.frequency / 528);
+        if (this.planetMesh) this.planetMesh.rotation.y += rotSpeed;
+        if (this.atmosphereMesh) this.atmosphereMesh.rotation.y += rotSpeed * 1.1;
+
+        // Pulse atmosphere scale with vocal alignment / coherence
+        const pulse = 1.12 + Math.sin(Date.now() * 0.002) * (state.coherence / 2000);
+        if (this.atmosphereMesh) this.atmosphereMesh.scale.set(pulse, pulse, pulse);
+
+        this.renderer.render(this.scene, this.camera);
+    }
+};
+
+// Hook Planet Observer lazy initialization to Tab click
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const targetTab = e.target.getAttribute('data-tab');
+        if (targetTab === 'planet') {
+            setTimeout(() => planetObserver.init(), 50);
+        }
+    });
+});
+
+// --- POPUP SECTION WINDOW MANAGER ---
+document.querySelectorAll('.hover-expand-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const popupType = e.currentTarget.getAttribute('data-popup');
+        openSectionPopup(popupType);
+    });
+});
+
+function openSectionPopup(type) {
+    const existingModal = document.querySelector('.onyx-modal-overlay');
+    if (existingModal) existingModal.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'onyx-modal-overlay';
+
+    const frame = document.createElement('div');
+    frame.className = 'onyx-modal-frame';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'onyx-modal-close';
+    closeBtn.innerHTML = '✕';
+    closeBtn.addEventListener('click', () => overlay.remove());
+
+    let contentHtml = '';
+    if (type === 'thought') {
+        const sourceElem = document.getElementById('section-thought');
+        contentHtml = `
+            <h2 class="section-title" style="margin-bottom:1rem;"><span class="number">01</span> Thought (Intention Engine Window)</h2>
+            <p class="section-desc" style="margin-bottom:1.5rem;">Consciousness acts as a physical force filter upon quantum wave functions.</p>
+            ${sourceElem ? sourceElem.innerHTML : ''}
+        `;
+    } else if (type === 'frequency') {
+        const sourceElem = document.getElementById('section-frequency');
+        contentHtml = `
+            <h2 class="section-title" style="margin-bottom:1rem;"><span class="number">02</span> Frequency (Vibrational Input Window)</h2>
+            <p class="section-desc" style="margin-bottom:1.5rem;">Acoustical wave excitation and real-time Solfeggio resonance controls.</p>
+            ${sourceElem ? sourceElem.innerHTML : ''}
+        `;
+    } else if (type === 'matter') {
+        const sourceElem = document.getElementById('section-matter');
+        contentHtml = `
+            <h2 class="section-title" style="margin-bottom:1rem;"><span class="number">03</span> Matter (Cymatics & Physics Window)</h2>
+            <p class="section-desc" style="margin-bottom:1.5rem;">Mathematical Chladni plate dynamics & vibrational energy balance.</p>
+            ${sourceElem ? sourceElem.innerHTML : ''}
+        `;
+    }
+
+    frame.innerHTML = contentHtml;
+    frame.appendChild(closeBtn);
+    
+    // Remove duplicate header buttons inside modal copy
+    frame.querySelectorAll('.hover-expand-btn').forEach(b => b.remove());
+
+    overlay.appendChild(frame);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
 // --- BOOTSTRAP ---
 window.onload = init;
