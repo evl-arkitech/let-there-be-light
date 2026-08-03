@@ -17,12 +17,14 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Sora:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
     <!-- CSS Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Background Glow Elements -->
+    <!-- Cosmic atmosphere -->
+    <canvas id="starfield-canvas" aria-hidden="true"></canvas>
+    <div class="nebula-veil" aria-hidden="true"></div>
     <div class="ambient-glow glow-1" id="glow-1"></div>
     <div class="ambient-glow glow-2" id="glow-2"></div>
     <div class="ambient-glow glow-3" id="glow-3"></div>
@@ -30,9 +32,13 @@
     <div class="app-container">
         <!-- Header -->
         <header class="main-header">
-            <div class="logo">
-                <span class="logo-light">LET THERE BE</span>
-                <span class="logo-bold">LIGHT</span>
+            <div class="logo" aria-label="Let There Be Light">
+                <span class="logo-mark" aria-hidden="true"></span>
+                <div class="logo-text">
+                    <span class="logo-light">LET THERE BE</span>
+                    <span class="logo-bold">LIGHT</span>
+                </div>
+                <span class="logo-tagline">Thought · Frequency · Matter</span>
             </div>
             <div class="header-right">
                 <button class="web3-btn" id="btn-connect-wallet" title="Connect Web3 Wallet">Connect Wallet</button>
@@ -222,14 +228,32 @@
             <section class="visualizer-panel glass">
                 <div class="canvas-header">
                     <div class="matrix-coordinate" id="matrix-coord">X: 0.00 | Y: 0.00</div>
-                    <button class="genesis-btn" id="btn-genesis" title="Trigger Singularity & Primordial Sound Wave">⚛ GENESIS</button>
+                    <button class="genesis-btn" id="btn-genesis" title="Trigger cosmological Big Bang sequence">
+                        <span class="genesis-btn-icon" aria-hidden="true">◉</span>
+                        <span class="genesis-btn-label">GENESIS</span>
+                        <span class="genesis-btn-sub">Big Bang</span>
+                    </button>
                     <div class="geometry-label" id="geometry-label">Chladni Mode: 4, 5</div>
                 </div>
 
                 <div class="canvas-wrapper">
+                    <div class="canvas-vignette" aria-hidden="true"></div>
                     <!-- The Interactive Canvas -->
                     <canvas id="matrix-canvas"></canvas>
                     
+                    <!-- Cosmological epoch HUD (shown during Genesis) -->
+                    <div class="epoch-hud hidden" id="epoch-hud" aria-live="polite">
+                        <div class="epoch-phase" id="epoch-phase">SINGULARITY</div>
+                        <div class="epoch-meta">
+                            <span class="epoch-time" id="epoch-time">t = 0</span>
+                            <span class="epoch-temp" id="epoch-temp">T → ∞</span>
+                        </div>
+                        <div class="epoch-track">
+                            <div class="epoch-progress" id="epoch-progress"></div>
+                        </div>
+                        <div class="epoch-desc" id="epoch-desc">All energy compressed to a single point</div>
+                    </div>
+
                     <!-- Soundwaves overlay -->
                     <div class="wave-overlay">
                         <canvas id="wave-canvas"></canvas>
@@ -238,10 +262,11 @@
                     <!-- Welcome Screen Overlay -->
                     <div class="canvas-overlay" id="welcome-overlay">
                         <div class="overlay-content">
-                            <div class="glowing-symbol">⚛</div>
+                            <div class="glowing-symbol" aria-hidden="true">◉</div>
+                            <p class="overlay-brand">LET THERE BE LIGHT</p>
                             <h3>Reality is a Resonance</h3>
                             <p>Thought directs energy. Frequency coordinates form. Matter settles in the silence between waves.</p>
-                            <p class="hint">Click the button below to initialize the audio context and begin shaping matter.</p>
+                            <p class="hint">Initialize the field — then trigger Genesis to simulate the primordial expansion.</p>
                             <button class="action-btn glow" id="btn-start-overlay">INITIALIZE FREQUENCY FIELD</button>
                         </div>
                     </div>
@@ -249,15 +274,15 @@
 
                 <div class="canvas-footer">
                     <div class="footer-stat">
-                        <span class="label">Field Particles:</span>
+                        <span class="label">Field Particles</span>
                         <span class="value" id="stat-particles">2,500</span>
                     </div>
                     <div class="footer-stat">
-                        <span class="label">Binaural Carrier:</span>
+                        <span class="label">Binaural Carrier</span>
                         <span class="value" id="stat-carrier">528 Hz</span>
                     </div>
                     <div class="footer-stat">
-                        <span class="label">Resonance Coherence:</span>
+                        <span class="label">Coherence</span>
                         <span class="value" id="stat-coherence">85%</span>
                     </div>
                     <!-- Web3 Mint Resonance Button -->
@@ -273,10 +298,9 @@
                 </div>
                 
                 <div class="manifesto-card">
-                    <div class="card-icon">⚡</div>
                     <h4>The Triad of Creation</h4>
                     <p class="manifesto-text">
-                        "If you want to find the secrets of the universe, think in terms of energy, frequency and vibration." 
+                        "If you want to find the secrets of the universe, think in terms of energy, frequency and vibration."
                         <span class="quote-author">— Nikola Tesla</span>
                     </p>
                 </div>
@@ -298,6 +322,7 @@
                                 cos(nπx)·cos(mπy) - cos(mπx)·cos(nπy) = 0
                             </div>
                             <p>Here, N and M define the harmonics. As you change the frequency, these ratios shift, forcing the chaotic sand-like particles into pristine geometric order.</p>
+                            <p><strong>Genesis</strong> runs a cosmological Big Bang sequence: singularity collapse, Planck flash, Hubble inflation, quark–gluon plasma, recombination (CMB), then structure formation as particles settle into Chladni nodal lines — the cosmic web of this field.</p>
                         </div>
 
                         <!-- Solfeggio Tab -->
