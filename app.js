@@ -54,10 +54,13 @@ const state = {
     vocalAligned: false,
     vocalAlignedLabel: '',
     
-    // Genesis Creation States
+    // Genesis / Big Bang cosmology
     genesisActive: false,
-    genesisTimer: 0,
+    genesisTimer: 0,       // overall progress 1 → 0
     genesisFlash: 0,
+    genesisPhase: null,    // singularity | planck | inflation | plasma | recombination | structure
+    genesisShockwaves: [], // expanding ring radii (0–1)
+    hubbleConstant: 0,     // expansion rate applied as H * r
     
     // Web3 State
     web3Provider: null,
@@ -177,12 +180,74 @@ const el = {
     btnConnectWallet: document.getElementById('btn-connect-wallet'),
     btnMintResonance: document.getElementById('btn-mint-resonance'),
     
+    // Epoch HUD
+    epochHud: document.getElementById('epoch-hud'),
+    epochPhase: document.getElementById('epoch-phase'),
+    epochTime: document.getElementById('epoch-time'),
+    epochTemp: document.getElementById('epoch-temp'),
+    epochProgress: document.getElementById('epoch-progress'),
+    epochDesc: document.getElementById('epoch-desc'),
+    
     // LIGHT Token elements
     tokenBalance: document.getElementById('token-balance'),
     btnClaimFaucet: document.getElementById('btn-claim-faucet'),
     btnAddToken: document.getElementById('btn-add-token'),
-    chkDustShield: document.getElementById('chk-dust-shield')
+    chkDustShield: document.getElementById('chk-dust-shield'),
+    
+    starfieldCanvas: document.getElementById('starfield-canvas')
 };
+
+// Cosmological epoch definitions (progress from 1 → 0; phase keyed by remaining timer bands)
+const GENESIS_EPOCHS = [
+    {
+        id: 'singularity',
+        label: 'SINGULARITY',
+        min: 0.88,
+        time: 't ≈ 0',
+        temp: 'T → ∞',
+        desc: 'All energy compressed into a dimensionless point'
+    },
+    {
+        id: 'planck',
+        label: 'PLANCK EPOCH',
+        min: 0.78,
+        time: 't ~ 10⁻⁴³ s',
+        temp: 'T ~ 10³² K',
+        desc: 'Quantum foam — gravity unifies with the other forces'
+    },
+    {
+        id: 'inflation',
+        label: 'COSMIC INFLATION',
+        min: 0.55,
+        time: 't ~ 10⁻³⁶ s',
+        temp: 'T ~ 10²⁷ K',
+        desc: 'Exponential expansion — space itself stretches faster than light'
+    },
+    {
+        id: 'plasma',
+        label: 'QUARK–GLUON PLASMA',
+        min: 0.35,
+        time: 't ~ 10⁻¹² s',
+        temp: 'T ~ 10¹⁵ K',
+        desc: 'Hot dense soup of free quarks, gluons, and radiation'
+    },
+    {
+        id: 'recombination',
+        label: 'RECOMBINATION',
+        min: 0.15,
+        time: 't ~ 380,000 yr',
+        temp: 'T ~ 3000 K',
+        desc: 'Atoms form — universe becomes transparent; CMB is released'
+    },
+    {
+        id: 'structure',
+        label: 'STRUCTURE FORMATION',
+        min: 0,
+        time: 't → now',
+        temp: 'T ~ 2.7 K',
+        desc: 'Matter settles into geometric order — the cosmic web emerges'
+    }
+];
 
 // --- INITIALIZATION ---
 function init() {
@@ -190,6 +255,7 @@ function init() {
     createParticles();
     bindEvents();
     updateUIColors();
+    initStarfield();
     
     // Start canvas animation loop
     requestAnimationFrame(tick);
@@ -236,6 +302,10 @@ class Particle {
         this.vx = 0;
         this.vy = 0;
         this.charge = Math.random(); // custom phase offset for individual animations
+        this.temp = 0;               // cosmological temperature proxy during genesis
+        this.redshift = 0;           // Doppler / expansion redshift 0–1
+        this.trailX = this.x;
+        this.trailY = this.y;
     }
     
     update(n, m, config, excitation, audioAmplitude = 0) {
@@ -277,24 +347,31 @@ class Particle {
         // Add random agitation proportional to local plate displacement (vibrational thermal noise)
         const force = 0.035 * speedMultiplier;
         
-        this.vx -= gradX * force;
-        this.vy -= gradY * force;
+        // During early genesis epochs, Chladni forces are suppressed (pre-structure universe)
+        const structureBlend = getGenesisStructureBlend();
+        this.vx -= gradX * force * structureBlend;
+        this.vy -= gradY * force * structureBlend;
         
-        // Shaking noise
-        this.vx += (Math.random() - 0.5) * absZ * noiseFactor;
-        this.vy += (Math.random() - 0.5) * absZ * noiseFactor;
+        // Shaking noise — amplified during plasma epoch
+        const thermalBoost = getGenesisThermalNoise();
+        this.vx += (Math.random() - 0.5) * absZ * noiseFactor * (1 + thermalBoost);
+        this.vy += (Math.random() - 0.5) * absZ * noiseFactor * (1 + thermalBoost);
         
-        // Genesis outward push (Big Bang simulation)
-        if (state.genesisActive && state.genesisTimer > 0) {
-            const pushForce = state.genesisTimer * 0.15;
-            const angle = Math.atan2(this.y, this.x) || Math.random() * Math.PI * 2;
-            this.vx += Math.cos(angle) * pushForce;
-            this.vy += Math.sin(angle) * pushForce;
+        // Multi-phase Big Bang cosmology forces
+        if (state.genesisActive) {
+            applyGenesisForces(this);
         }
         
-        // Apply friction
-        this.vx *= config.friction;
-        this.vy *= config.friction;
+        // Apply friction (lower friction during inflation = free expansion)
+        const friction = state.genesisActive && state.genesisPhase === 'inflation'
+            ? 0.995
+            : config.friction;
+        this.vx *= friction;
+        this.vy *= friction;
+        
+        // Trail for redshift streaks
+        this.trailX = this.x;
+        this.trailY = this.y;
         
         // Move particle
         this.x += this.vx;
@@ -364,6 +441,32 @@ class Particle {
         if (state.vocalAligned) {
             baseColor = interpolateColor(baseColor, '#05ffa1', 0.6); // shift color towards alignment green/teal
         }
+        
+        // Cosmological coloring during Big Bang
+        if (state.genesisActive) {
+            baseColor = getGenesisParticleColor(this, speed);
+            
+            // Doppler / expansion trail streak
+            if (this.redshift > 0.15 && speed > 0.01) {
+                const tx = ((this.trailX + 1) / 2) * w;
+                const ty = ((this.trailY + 1) / 2) * h;
+                ctx.strokeStyle = baseColor.replace('rgb', 'rgba').replace(')', `, ${0.35 * this.redshift})`);
+                // Fallback if color is already rgba or hex
+                if (baseColor.startsWith('#')) {
+                    ctx.strokeStyle = hexToRgba(baseColor, 0.35 * this.redshift);
+                } else if (baseColor.startsWith('rgb(')) {
+                    ctx.strokeStyle = baseColor.replace('rgb(', 'rgba(').replace(')', `, ${0.35 * this.redshift})`);
+                } else {
+                    ctx.strokeStyle = baseColor;
+                }
+                ctx.lineWidth = Math.max(0.5, config.particleSize * (0.6 + this.redshift));
+                ctx.beginPath();
+                ctx.moveTo(tx, ty);
+                ctx.lineTo(cx, cy);
+                ctx.stroke();
+            }
+        }
+        
         ctx.fillStyle = baseColor;
         
         // Render particle
@@ -372,11 +475,14 @@ class Particle {
         if (state.vocalAligned) {
             size *= 1.8; // swell particles during vocal resonance alignment
         }
+        if (state.genesisActive) {
+            size *= getGenesisParticleSizeScale(this);
+        }
         ctx.arc(cx, cy, size, 0, Math.PI * 2);
         ctx.fill();
         
         // Focus/Coherence connectors
-        if (state.intent === 'focus' && state.thoughtAlignment > 30) {
+        if (state.intent === 'focus' && state.thoughtAlignment > 30 && !state.genesisActive) {
             // Draw faint lines between very close particles to show "networking thoughts"
             // (Only for a few indices to preserve performance)
             if (this.charge < 0.04) {
@@ -861,13 +967,9 @@ function tick() {
     state.nodeN += (state.targetN - state.nodeN) * interpolationSpeed;
     state.nodeM += (state.targetM - state.nodeM) * interpolationSpeed;
     
-    // Genesis timers decay
+    // Advance Big Bang cosmology timeline
     if (state.genesisActive) {
-        state.genesisTimer -= 0.008; // takes ~2.5s
-        state.genesisFlash -= 0.015; // takes ~1.1s
-        if (state.genesisTimer <= 0) {
-            state.genesisActive = false;
-        }
+        advanceGenesisTimeline();
     }
     
     // 2. Fetch Audio data
@@ -905,6 +1007,9 @@ function tick() {
     
     // 5. Update stats bars
     updateStatsBars(audioAmplitude);
+    
+    // 6. Ambient starfield
+    drawStarfield();
     
     // Loop
     requestAnimationFrame(tick);
@@ -1087,7 +1192,17 @@ function drawCymatics(audioAmp) {
     const config = intentConfig[state.intent];
     
     // Clean canvas with intention trails (fade coefficient)
-    ctx.fillStyle = `rgba(4, 4, 9, ${config.trail})`;
+    // During singularity, fade faster toward black void
+    let trail = config.trail;
+    if (state.genesisActive) {
+        if (state.genesisPhase === 'singularity') trail = 0.35;
+        else if (state.genesisPhase === 'planck') trail = 0.08;
+        else if (state.genesisPhase === 'inflation') trail = 0.12;
+        else if (state.genesisPhase === 'plasma') trail = 0.18;
+        else if (state.genesisPhase === 'recombination') trail = 0.22;
+        else trail = config.trail;
+    }
+    ctx.fillStyle = `rgba(4, 4, 9, ${trail})`;
     ctx.fillRect(0, 0, state.width, state.height);
     
     // Update and draw particles
@@ -1098,7 +1213,7 @@ function drawCymatics(audioAmp) {
     }
     
     // Render "Thought Portal" focus aura if mouse active
-    if (state.mouse.active && state.mouse.x !== null) {
+    if (state.mouse.active && state.mouse.x !== null && !state.genesisActive) {
         ctx.strokeStyle = `rgba(${state.intent === 'manifest' ? '255, 0, 127' : '0, 242, 254'}, 0.25)`;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -1114,25 +1229,9 @@ function drawCymatics(audioAmp) {
         ctx.fill();
     }
     
-    // Draw Genesis Flash Burst
-    if (state.genesisActive && state.genesisFlash > 0) {
-        ctx.save();
-        const cx = state.width / 2;
-        const cy = state.height / 2;
-        const maxRadius = Math.max(state.width, state.height) * 0.7;
-        
-        // Flash moves outwards as it fades
-        const pulseRadius = maxRadius * (1.1 - state.genesisFlash);
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(10, pulseRadius));
-        grad.addColorStop(0, `rgba(255, 255, 255, ${state.genesisFlash})`);
-        grad.addColorStop(0.15, `rgba(255, 215, 0, ${state.genesisFlash * 0.8})`);
-        grad.addColorStop(0.4, `rgba(127, 0, 255, ${state.genesisFlash * 0.4})`);
-        grad.addColorStop(0.8, `rgba(0, 242, 254, ${state.genesisFlash * 0.15})`);
-        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, state.width, state.height);
-        ctx.restore();
+    // Draw cosmological overlays (flash, shockwaves, CMB)
+    if (state.genesisActive) {
+        drawGenesisOverlays(ctx);
     }
 }
 
@@ -1238,68 +1337,410 @@ function interpolateColor(color1, color2, factor) {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-// --- GENESIS CREATION SEQUENCER ---
+// --- GENESIS / BIG BANG COSMOLOGY ENGINE ---
+
+function getGenesisStructureBlend() {
+    if (!state.genesisActive) return 1;
+    const t = state.genesisTimer;
+    if (t > 0.55) return 0.02;           // pre-structure
+    if (t > 0.35) return 0.15;           // plasma — weak geometry
+    if (t > 0.15) return 0.45;           // recombination
+    return 0.35 + (1 - t / 0.15) * 0.65; // structure formation ramp
+}
+
+function getGenesisThermalNoise() {
+    if (!state.genesisActive) return 0;
+    switch (state.genesisPhase) {
+        case 'singularity': return 0.2;
+        case 'planck': return 2.5;
+        case 'inflation': return 0.4;
+        case 'plasma': return 3.2;
+        case 'recombination': return 1.0;
+        case 'structure': return 0.3;
+        default: return 0;
+    }
+}
+
+function applyGenesisForces(p) {
+    const phase = state.genesisPhase;
+    const r = Math.sqrt(p.x * p.x + p.y * p.y) || 0.0001;
+    const ux = p.x / r;
+    const uy = p.y / r;
+    
+    if (phase === 'singularity') {
+        // Collapse toward origin
+        const pull = 0.08 + state.genesisTimer * 0.04;
+        p.vx -= p.x * pull;
+        p.vy -= p.y * pull;
+        p.temp = 1;
+        p.redshift = 0;
+    } else if (phase === 'planck') {
+        // Violent jitter at the origin, slight radial kick
+        p.vx += (Math.random() - 0.5) * 0.12;
+        p.vy += (Math.random() - 0.5) * 0.12;
+        p.vx += ux * 0.02;
+        p.vy += uy * 0.02;
+        p.temp = 1;
+        p.redshift = 0.1;
+    } else if (phase === 'inflation') {
+        // Hubble flow: v = H * r  (exponential expansion of space)
+        const H = state.hubbleConstant;
+        p.vx += p.x * H;
+        p.vy += p.y * H;
+        // Extra boost for near-center particles so nothing stays stuck
+        if (r < 0.08) {
+            const angle = p.charge * Math.PI * 2;
+            p.vx += Math.cos(angle) * H * 2;
+            p.vy += Math.sin(angle) * H * 2;
+        }
+        p.temp = 0.85;
+        p.redshift = Math.min(1, r * 0.7 + 0.2);
+    } else if (phase === 'plasma') {
+        // Continuing milder expansion + thermal scatter
+        p.vx += p.x * state.hubbleConstant * 0.35;
+        p.vy += p.y * state.hubbleConstant * 0.35;
+        p.vx += (Math.random() - 0.5) * 0.06;
+        p.vy += (Math.random() - 0.5) * 0.06;
+        p.temp = 0.7 + Math.random() * 0.3;
+        const radialSpeed = (p.vx * ux + p.vy * uy);
+        p.redshift = Math.min(1, Math.max(0, radialSpeed * 8 + r * 0.4));
+    } else if (phase === 'recombination') {
+        // Decelerating expansion, cooling
+        p.vx += p.x * state.hubbleConstant * 0.12;
+        p.vy += p.y * state.hubbleConstant * 0.12;
+        p.temp = Math.max(0.15, state.genesisTimer);
+        p.redshift = Math.min(1, r * 0.35);
+    } else if (phase === 'structure') {
+        // Expansion fades; Chladni takes over via structureBlend
+        p.temp = Math.max(0, state.genesisTimer * 0.8);
+        p.redshift = Math.max(0, p.redshift * 0.96);
+    }
+}
+
+function getGenesisParticleColor(p, speed) {
+    const phase = state.genesisPhase;
+    if (phase === 'singularity') {
+        return interpolateColor('#1a1020', '#ffc857', Math.min(1, 0.3 + (1 - Math.min(1, Math.sqrt(p.x * p.x + p.y * p.y) * 8)) * 0.7));
+    }
+    if (phase === 'planck') {
+        return interpolateColor('#ffffff', '#ffc857', Math.random() * 0.4);
+    }
+    if (phase === 'inflation') {
+        // Blue-shift near center, red-shift at edge (relativistic look)
+        return interpolateColor('#3de7ff', '#ff3d8a', p.redshift);
+    }
+    if (phase === 'plasma') {
+        // Quark-gluon: white-hot → gold → plasma orange → magenta by temperature
+        const hot = interpolateColor('#ffffff', '#ffc857', 1 - p.temp);
+        return interpolateColor(hot, '#ff6b35', Math.min(1, speed * 15 + p.charge * 0.4));
+    }
+    if (phase === 'recombination') {
+        // Cooling toward CMB sepia / gold mist
+        return interpolateColor('#ff8f5a', '#c4a882', 1 - p.temp);
+    }
+    // Structure — fade back toward intent colors
+    const config = intentConfig[state.intent];
+    const cosmic = interpolateColor('#c4a882', config.color1, 1 - state.genesisTimer / 0.15);
+    return interpolateColor(cosmic, config.color2, Math.min(1, speed * 12));
+}
+
+function getGenesisParticleSizeScale(p) {
+    switch (state.genesisPhase) {
+        case 'singularity': return 0.4 + (1 - Math.min(1, Math.sqrt(p.x * p.x + p.y * p.y) * 6)) * 1.8;
+        case 'planck': return 2.2 + Math.random() * 1.5;
+        case 'inflation': return 0.7 + p.redshift * 0.8;
+        case 'plasma': return 1.1 + p.temp * 0.9;
+        case 'recombination': return 1.3 + p.temp * 0.4;
+        default: return 1 + (1 - state.genesisTimer / 0.15) * 0.2;
+    }
+}
+
+function hexToRgba(hex, alpha) {
+    const h = hex.replace('#', '');
+    const r = parseInt(h.substring(0, 2), 16);
+    const g = parseInt(h.substring(2, 4), 16);
+    const b = parseInt(h.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function resolveGenesisPhase(timer) {
+    for (const epoch of GENESIS_EPOCHS) {
+        if (timer >= epoch.min) return epoch;
+    }
+    return GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1];
+}
+
+function advanceGenesisTimeline() {
+    const prevPhase = state.genesisPhase;
+    
+    // ~8 seconds total sequence (timer 1 → 0)
+    state.genesisTimer -= 0.00205;
+    state.genesisFlash = Math.max(0, state.genesisFlash - 0.006);
+    
+    // Hubble constant peaks during inflation, then decays
+    const t = state.genesisTimer;
+    if (t > 0.78) {
+        state.hubbleConstant = 0;
+    } else if (t > 0.55) {
+        // Inflation: ramp then hold high H
+        const inflProg = (0.78 - t) / 0.23;
+        state.hubbleConstant = 0.012 + inflProg * 0.028;
+    } else if (t > 0.35) {
+        state.hubbleConstant = 0.01 * ((t - 0.35) / 0.2);
+    } else if (t > 0.15) {
+        state.hubbleConstant = 0.004 * ((t - 0.15) / 0.2);
+    } else {
+        state.hubbleConstant = 0.001 * (t / 0.15);
+    }
+    
+    // Expand shockwave rings
+    state.genesisShockwaves = state.genesisShockwaves
+        .map(s => ({ ...s, r: s.r + s.speed, alpha: s.alpha * 0.985 }))
+        .filter(s => s.alpha > 0.02 && s.r < 1.6);
+    
+    const epoch = resolveGenesisPhase(Math.max(0, t));
+    state.genesisPhase = epoch.id;
+    
+    // Emit shockwave when entering inflation / plasma / recombination
+    if (prevPhase !== epoch.id) {
+        if (epoch.id === 'planck' || epoch.id === 'inflation' || epoch.id === 'recombination') {
+            state.genesisShockwaves.push({ r: 0.02, speed: 0.018, alpha: 0.85 });
+        }
+        if (epoch.id === 'planck') {
+            state.genesisFlash = 1.0;
+        }
+        updateEpochHud(epoch);
+        el.statusText.innerText = `GENESIS · ${epoch.label}`;
+    }
+    
+    // Update progress bar every frame
+    if (el.epochProgress) {
+        el.epochProgress.style.width = `${Math.max(0, (1 - Math.max(0, t)) * 100)}%`;
+    }
+    
+    if (state.genesisTimer <= 0) {
+        endGenesisSequence();
+    }
+}
+
+function updateEpochHud(epoch) {
+    if (!el.epochHud) return;
+    el.epochHud.classList.remove('hidden');
+    el.epochPhase.innerText = epoch.label;
+    el.epochTime.innerText = epoch.time;
+    el.epochTemp.innerText = epoch.temp;
+    el.epochDesc.innerText = epoch.desc;
+}
+
+function endGenesisSequence() {
+    state.genesisActive = false;
+    state.genesisPhase = null;
+    state.genesisTimer = 0;
+    state.hubbleConstant = 0;
+    state.genesisShockwaves = [];
+    document.body.classList.remove('genesis-active');
+    if (el.epochHud) el.epochHud.classList.add('hidden');
+    if (el.btnGenesis) el.btnGenesis.disabled = false;
+    el.statusText.innerText = "FIELD STABILIZED · STRUCTURE FORMED";
+    el.statusDot.className = "pulse-dot active";
+    
+    // Soft-reset particle thermal state
+    for (let i = 0; i < state.particleCount; i++) {
+        state.particles[i].temp = 0;
+        state.particles[i].redshift = 0;
+    }
+}
+
+function drawGenesisOverlays(ctx) {
+    const cx = state.width / 2;
+    const cy = state.height / 2;
+    const maxR = Math.hypot(state.width, state.height) * 0.55;
+    
+    ctx.save();
+    
+    // CMB mist during recombination / early structure
+    if (state.genesisPhase === 'recombination' || state.genesisPhase === 'structure') {
+        const mistAlpha = state.genesisPhase === 'recombination'
+            ? 0.12 * state.genesisTimer
+            : 0.06 * (state.genesisTimer / 0.15);
+        const mist = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR * 0.9);
+        mist.addColorStop(0, `rgba(196, 168, 130, ${mistAlpha * 0.5})`);
+        mist.addColorStop(0.45, `rgba(255, 180, 100, ${mistAlpha * 0.25})`);
+        mist.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = mist;
+        ctx.fillRect(0, 0, state.width, state.height);
+    }
+    
+    // Shockwave rings
+    for (const wave of state.genesisShockwaves) {
+        const radius = wave.r * maxR;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 220, 160, ${wave.alpha * 0.7})`;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 0.97, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(61, 231, 255, ${wave.alpha * 0.35})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+    
+    // Central singularity / Planck flash
+    if (state.genesisFlash > 0) {
+        const pulseRadius = Math.max(8, maxR * (1.05 - state.genesisFlash) * (state.genesisPhase === 'planck' ? 0.5 : 0.85));
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, pulseRadius);
+        if (state.genesisPhase === 'singularity') {
+            grad.addColorStop(0, `rgba(255, 255, 255, ${state.genesisFlash * 0.9})`);
+            grad.addColorStop(0.2, `rgba(255, 200, 87, ${state.genesisFlash * 0.5})`);
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        } else if (state.genesisPhase === 'planck') {
+            grad.addColorStop(0, `rgba(255, 255, 255, ${state.genesisFlash})`);
+            grad.addColorStop(0.12, `rgba(255, 240, 200, ${state.genesisFlash * 0.9})`);
+            grad.addColorStop(0.35, `rgba(255, 107, 53, ${state.genesisFlash * 0.45})`);
+            grad.addColorStop(0.7, `rgba(61, 231, 255, ${state.genesisFlash * 0.18})`);
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        } else {
+            grad.addColorStop(0, `rgba(255, 255, 255, ${state.genesisFlash * 0.55})`);
+            grad.addColorStop(0.25, `rgba(255, 200, 87, ${state.genesisFlash * 0.3})`);
+            grad.addColorStop(0.6, `rgba(61, 231, 255, ${state.genesisFlash * 0.12})`);
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, state.width, state.height);
+    }
+    
+    // Inflation whiteout edge bloom
+    if (state.genesisPhase === 'inflation') {
+        const bloom = ctx.createRadialGradient(cx, cy, maxR * 0.2, cx, cy, maxR);
+        bloom.addColorStop(0, 'rgba(0,0,0,0)');
+        bloom.addColorStop(0.7, `rgba(61, 231, 255, ${0.04 * state.hubbleConstant * 40})`);
+        bloom.addColorStop(1, `rgba(255, 61, 138, ${0.06 * state.hubbleConstant * 40})`);
+        ctx.fillStyle = bloom;
+        ctx.fillRect(0, 0, state.width, state.height);
+    }
+    
+    ctx.restore();
+}
+
+function playGenesisAudio() {
+    stopOscillators();
+    stopMicCapture();
+    
+    if (state.inputSource === 'mic') {
+        setSource('generator');
+    }
+    
+    const ctx = state.audioCtx;
+    const now = ctx.currentTime;
+    
+    // Deep primordial rumble
+    state.oscillator1 = ctx.createOscillator();
+    state.oscillator1.type = 'sine';
+    state.oscillator1.frequency.setValueAtTime(28, now);
+    state.oscillator1.frequency.exponentialRampToValueAtTime(80, now + 1.2);
+    state.oscillator1.frequency.exponentialRampToValueAtTime(state.frequency * 0.5, now + 4.5);
+    state.oscillator1.frequency.exponentialRampToValueAtTime(state.frequency, now + 7.5);
+    
+    // Detuned twin for binaural / beating feel
+    state.oscillator2 = ctx.createOscillator();
+    state.oscillator2.type = 'sine';
+    state.oscillator2.frequency.setValueAtTime(30.5, now);
+    state.oscillator2.frequency.exponentialRampToValueAtTime(82, now + 1.2);
+    state.oscillator2.frequency.exponentialRampToValueAtTime(state.frequency * 0.5 + 1.4, now + 4.5);
+    state.oscillator2.frequency.exponentialRampToValueAtTime(state.frequency + 1.2, now + 7.5);
+    
+    // Noise burst for Planck flash (filtered)
+    const bufferSize = ctx.sampleRate * 1.5;
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.35));
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(200, now);
+    noiseFilter.frequency.exponentialRampToValueAtTime(4000, now + 0.8);
+    noiseFilter.Q.value = 0.7;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0, now);
+    noiseGain.gain.linearRampToValueAtTime(state.volume * 0.55, now + 0.9);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 2.2);
+    
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(state.gainNode);
+    
+    state.oscillator1.connect(state.gainNode);
+    state.oscillator2.connect(state.gainNode);
+    
+    state.gainNode.gain.cancelScheduledValues(now);
+    state.gainNode.gain.setValueAtTime(0.0001, now);
+    state.gainNode.gain.exponentialRampToValueAtTime(Math.max(0.001, state.volume * 0.35), now + 0.6);
+    state.gainNode.gain.linearRampToValueAtTime(state.volume, now + 2.0);
+    state.gainNode.gain.linearRampToValueAtTime(state.volume * 0.85, now + 7.5);
+    
+    state.oscillator1.start(now);
+    state.oscillator2.start(now);
+    noise.start(now + 0.85);
+    noise.stop(now + 2.5);
+}
+
 function triggerGenesisSequence() {
+    if (state.genesisActive) return;
+    
     initAudio();
     if (state.audioCtx.state === 'suspended') {
         state.audioCtx.resume();
     }
     
+    // Dismiss welcome overlay if still visible
+    if (el.welcomeOverlay && !el.welcomeOverlay.classList.contains('hidden')) {
+        el.welcomeOverlay.classList.add('hidden');
+    }
+    
     state.isPlaying = true;
     state.genesisActive = true;
     state.genesisTimer = 1.0;
-    state.genesisFlash = 1.0;
+    state.genesisFlash = 0.55;
+    state.genesisPhase = 'singularity';
+    state.genesisShockwaves = [];
+    state.hubbleConstant = 0;
+    
+    document.body.classList.add('genesis-active');
+    if (el.btnGenesis) el.btnGenesis.disabled = true;
     
     // UI Updates
     el.btnActivate.classList.add('active');
     el.btnActivate.querySelector('.activate-text').innerText = "DISCONNECT THE GRID";
     el.statusDot.className = "pulse-dot active";
-    el.statusText.innerText = "GENESIS: LET THERE BE LIGHT!";
+    el.statusText.innerText = "GENESIS · SINGULARITY";
     
     // Intention alignment hits maximum charge
     state.thoughtAlignment = 100;
     el.barThought.style.width = "100%";
     el.thoughtInput.value = "Let there be light";
     
-    // Primordial sweep in audio
-    stopOscillators();
-    stopMicCapture();
+    updateEpochHud(GENESIS_EPOCHS[0]);
+    if (el.epochProgress) el.epochProgress.style.width = '0%';
     
-    if (state.inputSource === 'mic') {
-        // Fallback to generator for genesis sound sweep
-        setSource('generator');
-    }
+    playGenesisAudio();
     
-    state.oscillator1 = state.audioCtx.createOscillator();
-    state.oscillator1.type = 'sine';
-    state.oscillator1.frequency.setValueAtTime(60, state.audioCtx.currentTime); // start deep sub-bass
-    state.oscillator1.frequency.exponentialRampToValueAtTime(state.frequency, state.audioCtx.currentTime + 3.0); // sweep to target
-    
-    state.oscillator2 = state.audioCtx.createOscillator();
-    state.oscillator2.type = 'sine';
-    state.oscillator2.frequency.setValueAtTime(61.2, state.audioCtx.currentTime);
-    state.oscillator2.frequency.exponentialRampToValueAtTime(state.frequency + 1.2, state.audioCtx.currentTime + 3.0);
-    
-    state.oscillator1.connect(state.gainNode);
-    state.oscillator2.connect(state.gainNode);
-    
-    // Swoosh gain ramp
-    state.gainNode.gain.setValueAtTime(0, state.audioCtx.currentTime);
-    state.gainNode.gain.linearRampToValueAtTime(state.volume, state.audioCtx.currentTime + 1.5);
-    
-    state.oscillator1.start();
-    state.oscillator2.start();
-    
-    // Singularity collapsing particles
+    // Collapse all particles into a tight singularity with tiny seed velocities
     for (let i = 0; i < state.particleCount; i++) {
         const p = state.particles[i];
-        p.x = 0;
-        p.y = 0;
-        // Give outwards blast velocities
-        const angle = Math.random() * Math.PI * 2;
-        const speed = (0.2 + Math.random() * 0.8) * 0.08;
-        p.vx = Math.cos(angle) * speed;
-        p.vy = Math.sin(angle) * speed;
+        const angle = (i / state.particleCount) * Math.PI * 2 + p.charge;
+        const seed = 0.002 + Math.random() * 0.012;
+        p.x = Math.cos(angle) * seed;
+        p.y = Math.sin(angle) * seed;
+        p.vx = Math.cos(angle) * 0.002;
+        p.vy = Math.sin(angle) * 0.002;
+        p.temp = 1;
+        p.redshift = 0;
+        p.trailX = p.x;
+        p.trailY = p.y;
     }
 }
 
@@ -2004,6 +2445,75 @@ function openSectionPopup(type) {
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
+}
+
+// --- COSMIC STARFIELD BACKGROUND ---
+const starfield = {
+    stars: [],
+    ctx: null,
+    w: 0,
+    h: 0,
+    ready: false
+};
+
+function initStarfield() {
+    const canvas = el.starfieldCanvas;
+    if (!canvas) return;
+    
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    starfield.w = window.innerWidth;
+    starfield.h = window.innerHeight;
+    canvas.width = starfield.w * dpr;
+    canvas.height = starfield.h * dpr;
+    canvas.style.width = `${starfield.w}px`;
+    canvas.style.height = `${starfield.h}px`;
+    
+    starfield.ctx = canvas.getContext('2d');
+    starfield.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    const count = Math.min(220, Math.floor((starfield.w * starfield.h) / 9000));
+    starfield.stars = [];
+    for (let i = 0; i < count; i++) {
+        starfield.stars.push({
+            x: Math.random() * starfield.w,
+            y: Math.random() * starfield.h,
+            r: Math.random() * 1.4 + 0.2,
+            a: Math.random() * 0.6 + 0.15,
+            tw: Math.random() * Math.PI * 2,
+            sp: 0.008 + Math.random() * 0.02
+        });
+    }
+    starfield.ready = true;
+    
+    window.addEventListener('resize', () => {
+        starfield.w = window.innerWidth;
+        starfield.h = window.innerHeight;
+        canvas.width = starfield.w * dpr;
+        canvas.height = starfield.h * dpr;
+        canvas.style.width = `${starfield.w}px`;
+        canvas.style.height = `${starfield.h}px`;
+        starfield.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (const s of starfield.stars) {
+            s.x = Math.random() * starfield.w;
+            s.y = Math.random() * starfield.h;
+        }
+    });
+}
+
+function drawStarfield() {
+    if (!starfield.ready) return;
+    const ctx = starfield.ctx;
+    ctx.clearRect(0, 0, starfield.w, starfield.h);
+    
+    const boost = state.genesisActive ? 1.4 : 1;
+    for (const s of starfield.stars) {
+        s.tw += s.sp;
+        const flicker = 0.55 + Math.sin(s.tw) * 0.45;
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(220, 230, 255, ${s.a * flicker * boost})`;
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
 }
 
 // --- BOOTSTRAP ---
